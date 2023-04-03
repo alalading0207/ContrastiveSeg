@@ -192,8 +192,8 @@ class HRNet_W48_OCR(nn.Module):
     def __init__(self, configer):
         super(HRNet_W48_OCR, self).__init__()
         self.configer = configer
-        self.num_classes = self.configer.get('data', 'num_classes')
-        self.backbone = BackboneSelector(configer).get_backbone()
+        self.num_classes = self.configer.get('data', 'num_classes') # 分几类
+        self.backbone = BackboneSelector(configer).get_backbone()   # 先初始化 再get backbone
 
         in_channels = 720
         self.conv3x3 = nn.Sequential(

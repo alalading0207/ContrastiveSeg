@@ -420,7 +420,7 @@ class RandomResize(_BaseTransform):
 
         height, width, _ = img.shape
         if self.scale_list is None:
-            scale_ratio = self.get_scale([width, height])
+            scale_ratio = self.get_scale([width, height])   # 长宽比1.22
         else:
             scale_ratio = self.scale_list[random.randint(
                 0, len(self.scale_list) - 1)]
@@ -679,17 +679,17 @@ class CV2AugCompose(object):
                 else:
                     shuffle_train_trans = self.configer.get(
                         'train_trans', 'shuffle_trans_seq')
-            trans_seq = self.configer.get(
-                'train_trans', 'trans_seq') + shuffle_train_trans
-            trans_key = 'train_trans'
+            # config里"trans_seq": ["random_resize", "random_crop", "random_hflip", "random_brightness"]
+            trans_seq = self.configer.get( 'train_trans', 'trans_seq') + shuffle_train_trans   # 序列
+            trans_key = 'train_trans'   # 关键词
         else:
             trans_seq = self.configer.get('val_trans', 'trans_seq')
             trans_key = 'val_trans'
 
         self.transforms = dict()
-        self.trans_config = self.configer.get(trans_key)
+        self.trans_config = self.configer.get(trans_key)   # trans_config = trans_key = 'train_trans'
         for trans_name in trans_seq:
-            specs = TRANSFORM_SPEC[trans_name]
+            specs = TRANSFORM_SPEC[trans_name]   # 参数设置
             config = self.configer.get(trans_key, trans_name)
             for spec in specs:
                 if 'when' not in spec:
@@ -716,26 +716,27 @@ class CV2AugCompose(object):
 
     def __call__(self, img, **data_dict):
 
-        orig_key_list = list(data_dict)
+        orig_key_list = list(data_dict)   # orig_key_list:['labelmap']
 
         if self.configer.get('data', 'input_mode') == 'RGB':
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
         if self.split == 'train':
             shuffle_trans_seq = []
-            if self.configer.exists('train_trans', 'shuffle_trans_seq'):
+            if self.configer.exists('train_trans', 'shuffle_trans_seq'):   # 不存在这个参数
                 if isinstance(self.configer.get('train_trans', 'shuffle_trans_seq')[0], list):
                     shuffle_trans_seq_list = self.configer.get('train_trans', 'shuffle_trans_seq')
                     shuffle_trans_seq = shuffle_trans_seq_list[random.randint(0, len(shuffle_trans_seq_list))]
                 else:
                     shuffle_trans_seq = self.configer.get('train_trans', 'shuffle_trans_seq')
                     random.shuffle(shuffle_trans_seq)
-            trans_seq = shuffle_trans_seq + self.configer.get('train_trans', 'trans_seq')
+            # "trans_seq": ["random_resize", "random_crop", "random_hflip", "random_brightness"]
+            trans_seq = shuffle_trans_seq + self.configer.get('train_trans', 'trans_seq')  # 获取增强类型
         else:
             trans_seq = self.configer.get('val_trans', 'trans_seq')
 
         for trans_key in trans_seq:
-            img, data_dict = self.transforms[trans_key](img, **data_dict)
+            img, data_dict = self.transforms[trans_key](img, **data_dict)  # 逐个执行trans_seq里的增强函数
 
         if self.configer.get('data', 'input_mode') == 'RGB':
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

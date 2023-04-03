@@ -40,16 +40,16 @@ class ImageHelper(object):
             exit(1)
 
     @staticmethod
-    def cv2_read_image(image_path, mode='RGB'):
-        img_bgr = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    def cv2_read_image(image_path, mode='RGB'):   # 读影像
+        img_bgr = cv2.imread(image_path, cv2.IMREAD_COLOR)   # cv2读出来的是np格式
         if mode == 'RGB':
             return ImageHelper.bgr2rgb(img_bgr)
 
-        elif mode == 'BGR':
+        elif mode == 'BGR':   # 影像的模式
             return img_bgr
 
-        elif mode == 'P':
-            return ImageHelper.img2np(Image.open(image_path).convert('P'))
+        elif mode == 'P':     # 标签的模式
+            return ImageHelper.img2np(Image.open(image_path).convert('P')) # PIL读出来的是Image格式 所以要to np格式
 
         else:
             Log.error('Not support mode {}'.format(mode))
@@ -164,7 +164,7 @@ class ImageHelper(object):
         return img.astype(np.uint8)
 
     @staticmethod
-    def get_size(img):
+    def get_size(img):   # 影像大小
         if isinstance(img, Image.Image):
             return img.size
 

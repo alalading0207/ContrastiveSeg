@@ -59,12 +59,13 @@ class LossManager(object):
         return loss
 
     def get_seg_loss(self, loss_type=None):
-        key = self.configer.get('loss', 'loss_type') if loss_type is None else loss_type
+        # 获取loss类型名称  例如：fs_auxce_loss
+        key = self.configer.get('loss', 'loss_type') if loss_type is None else loss_type    
         if key not in SEG_LOSS_DICT:
             Log.error('Loss: {} not valid!'.format(key))
             exit(1)
         Log.info('use loss: {}.'.format(key))
-        loss = SEG_LOSS_DICT[key](self.configer)
+        loss = SEG_LOSS_DICT[key](self.configer)   # 例如：fs_auxce_loss(self.configer)
         return self._parallel(loss)
 
 

@@ -13,7 +13,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import os 
 import pdb
 
 import numpy as np
@@ -24,49 +24,57 @@ from lib.extensions.parallel.data_container import DataContainer
 from lib.utils.tools.logger import Logger as Log
 
 
+
+# loader = klass(root_dir, **kwargs)
 class DefaultLoader(data.Dataset):
     def __init__(self, root_dir, aug_transform=None, dataset=None,
-                 img_transform=None, label_transform=None, configer=None):
+                 img_transform=None, label_transform=None, configer=None):   # dataset='train'
         self.configer = configer
         self.aug_transform = aug_transform
         self.img_transform = img_transform
         self.label_transform = label_transform
-        self.img_list, self.label_list, self.name_list = self.__list_dirs(root_dir, dataset)
-        size_mode = self.configer.get(dataset, 'data_transformer')['size_mode']
+        self.img_list, self.label_list, self.name_list = self.__list_dirs(root_dir, dataset) # 将数据集名称和根目录传进去  以获得 name list
+        size_mode = self.configer.get(dataset, 'data_transformer')['size_mode']   # mode='fix_size'
         self.is_stack = size_mode != 'diverse_size'
 
-        Log.info('{} {}'.format(dataset, len(self.img_list)))
+        Log.info('{} {}'.format(dataset, len(self.img_list)))   # train的影像个数
 
     def __len__(self):
         return len(self.img_list)
 
     def __getitem__(self, index):
-        img = ImageHelper.read_image(self.img_list[index],
-                                     tool=self.configer.get('data', 'image_tool'),
-                                     mode=self.configer.get('data', 'input_mode'))
+        # 读影像
+        img = ImageHelper.read_image(self.img_list[index],    # read image的方式   self.img_list存的是影像路径
+                                     tool=self.configer.get('data', 'image_tool'),   # cv2
+                                     mode=self.configer.get('data', 'input_mode'))   # BGR
         # Log.info('{}'.format(self.img_list[index]))
-        img_size = ImageHelper.get_size(img)
+        img_size = ImageHelper.get_size(img)   # 只读长宽
+        # 读标签
         labelmap = ImageHelper.read_image(self.label_list[index],
                                           tool=self.configer.get('data', 'image_tool'), mode='P')
+        
+        # 重新组织label, 设置背景类
         if self.configer.exists('data', 'label_list'):
-            labelmap = self._encode_label(labelmap)
+            labelmap = self._encode_label(labelmap)   
 
         if self.configer.exists('data', 'reduce_zero_label'):
             labelmap = self._reduce_zero_label(labelmap)
 
-        ori_target = ImageHelper.tonp(labelmap)
-        ori_target[ori_target == 255] = -1
+        ori_target = ImageHelper.tonp(labelmap)   # 如果label读取方式为Image则需要tonp
+        ori_target[ori_target == 255] = -1        # 设置背景类为-1
 
+        # 数据增强
         if self.aug_transform is not None:
-            img, labelmap = self.aug_transform(img, labelmap=labelmap)
+            img, labelmap = self.aug_transform(img, labelmap=labelmap)  
 
-        border_size = ImageHelper.get_size(img)
+        border_size = ImageHelper.get_size(img)   # 只读长宽
 
+        # To tensor
         if self.img_transform is not None:
-            img = self.img_transform(img)
+            img = self.img_transform(img)   # 处理img
 
         if self.label_transform is not None:
-            labelmap = self.label_transform(labelmap)
+            labelmap = self.label_transform(labelmap)   # 处理label
 
         meta = dict(
             ori_img_size=img_size,
@@ -74,7 +82,7 @@ class DefaultLoader(data.Dataset):
             ori_target=ori_target
         )
         return dict(
-            img=DataContainer(img, stack=self.is_stack),
+            img=DataContainer(img, stack=self.is_stack),     # 堆叠
             labelmap=DataContainer(labelmap, stack=self.is_stack),
             meta=DataContainer(meta, stack=False, cpu_only=True),
             name=DataContainer(self.name_list[index], stack=False, cpu_only=True),
@@ -91,48 +99,43 @@ class DefaultLoader(data.Dataset):
 
         return encoded_labelmap
 
-    def _encode_label(self, labelmap):
+    def _encode_label(self, labelmap):    # 重新组织label上的数字
         labelmap = np.array(labelmap)
 
         shape = labelmap.shape
-        encoded_labelmap = np.ones(shape=(shape[0], shape[1]), dtype=np.float32) * 255
+        encoded_labelmap = np.ones(shape=(shape[0], shape[1]), dtype=np.float32) * 255  # 一个全是255的张量
         for i in range(len(self.configer.get('data', 'label_list'))):
             class_id = self.configer.get('data', 'label_list')[i]
-            encoded_labelmap[labelmap == class_id] = i
+            encoded_labelmap[labelmap == class_id] = i     # label重新组织：这19类有id，其余类都为255
 
         if self.configer.get('data', 'image_tool') == 'pil':
             encoded_labelmap = ImageHelper.np2img(encoded_labelmap.astype(np.uint8))
 
         return encoded_labelmap
 
-    def __list_dirs(self, root_dir, dataset):
+
+    def __list_dirs(self, root_dir, dataset):   # 获取影像路径
         img_list = list()
         label_list = list()
         name_list = list()
-        image_dir = os.path.join(root_dir, dataset, 'image')
-        label_dir = os.path.join(root_dir, dataset, 'label')
+        image_dir = os.path.join(root_dir, dataset, 'image')  # /gemini/code/Cityscapes(dataset root_dir)/train/image
+        label_dir = os.path.join(root_dir, dataset, 'label')  # /gemini/code/Cityscapes/train/label
 
-        # only change the ground-truth labels of training set
-        if self.configer.exists('data', 'label_edge2void'):
-            label_dir = os.path.join(root_dir, dataset, 'label_edge_void')
-        elif self.configer.exists('data', 'label_non_edge2void'):
-            label_dir = os.path.join(root_dir, dataset, 'label_non_edge_void')
-
-        img_extension = os.listdir(image_dir)[0].split('.')[-1]
-
+        # img_extension = os.listdir(image_dir)[0].split('.')[-1]  
         # support the argument to pass the file list used for training/testing
-        file_list_txt = os.environ.get('use_file_list')
+        file_list_txt = os.environ.get('use_file_list')    # 获得了None
         if file_list_txt is None:
-            files = sorted(os.listdir(image_dir))
+            files = sorted(os.listdir(image_dir))   # files是所有影像的名字
         else:
             Log.info("Using file list {} for training".format(file_list_txt))
             with open(os.path.join(root_dir, dataset, 'file_list', file_list_txt)) as f:
                 files = [x.strip() for x in f]
 
+
         for file_name in files:
-            image_name = '.'.join(file_name.split('.')[:-1])
-            img_path = os.path.join(image_dir, '{}'.format(file_name))
-            label_path = os.path.join(label_dir, image_name + '.png')
+            image_name = '.'.join(file_name.split('.')[:-1])   # 去掉后缀
+            img_path = os.path.join(image_dir, '{}'.format(file_name))   # 影像路径
+            label_path = os.path.join(label_dir, image_name + '.png')  # 标签路径：名字加后缀
             # Log.info('{} {} {}'.format(image_name, img_path, label_path))
             if not os.path.exists(label_path) or not os.path.exists(img_path):
                 Log.error('Label Path: {} {} not exists.'.format(label_path, img_path))
@@ -142,118 +145,123 @@ class DefaultLoader(data.Dataset):
             label_list.append(label_path)
             name_list.append(image_name)
 
-        if dataset == 'train' and self.configer.get('data', 'include_val'):
-            Log.info("Use validation dataset for training.")
-            image_dir = os.path.join(root_dir, 'val/image')
-            label_dir = os.path.join(root_dir, 'val/label')
+        # print('img_list:',img_list)
+        # print('label_list:',label_list)
+        # print('name_list:',name_list)
 
-            # we only use trainval set for training if set include_val
-            if self.configer.get('dataset') == 'pascal_voc':
-                image_dir = os.path.join(root_dir, 'trainval/image')
-                label_dir = os.path.join(root_dir, 'trainval/label') 
-                img_list.clear()
-                label_list.clear()
-                name_list.clear()              
 
-            if self.configer.exists('data', 'label_edge2void'):
-                label_dir = os.path.join(root_dir, 'val/label_edge_void')
-            elif self.configer.exists('data', 'label_non_edge2void'):
-                label_dir = os.path.join(root_dir, 'val/label_non_edge_void')
+        # if dataset == 'train' and self.configer.get('data', 'include_val'):
+        #     Log.info("Use validation dataset for training.")
+        #     image_dir = os.path.join(root_dir, 'val/image')
+        #     label_dir = os.path.join(root_dir, 'val/label')
 
-            if file_list_txt is None:
-                files = sorted(os.listdir(image_dir))
-            else:
-                Log.info("Using file list {} for validation".format(file_list_txt))
-                with open(os.path.join(root_dir, 'val', 'file_list', file_list_txt)) as f:
-                    files = [x.strip() for x in f]
+        #     # we only use trainval set for training if set include_val
+        #     if self.configer.get('dataset') == 'pascal_voc':
+        #         image_dir = os.path.join(root_dir, 'trainval/image')
+        #         label_dir = os.path.join(root_dir, 'trainval/label') 
+        #         img_list.clear()
+        #         label_list.clear()
+        #         name_list.clear()              
 
-            for file_name in files:
-                image_name = '.'.join(file_name.split('.')[:-1])
-                img_path = os.path.join(image_dir, '{}'.format(file_name))
-                label_path = os.path.join(label_dir, image_name + '.png')
-                if not os.path.exists(label_path) or not os.path.exists(img_path):
-                    Log.error('Label Path: {} {} not exists.'.format(label_path, img_path))
-                    continue
+        #     if self.configer.exists('data', 'label_edge2void'):
+        #         label_dir = os.path.join(root_dir, 'val/label_edge_void')
+        #     elif self.configer.exists('data', 'label_non_edge2void'):
+        #         label_dir = os.path.join(root_dir, 'val/label_non_edge_void')
 
-                img_list.append(img_path)
-                label_list.append(label_path)
-                name_list.append(image_name)
+        #     if file_list_txt is None:
+        #         files = sorted(os.listdir(image_dir))
+        #     else:
+        #         Log.info("Using file list {} for validation".format(file_list_txt))
+        #         with open(os.path.join(root_dir, 'val', 'file_list', file_list_txt)) as f:
+        #             files = [x.strip() for x in f]
 
-        if dataset == 'train' and self.configer.get('data', 'include_coarse'):
-            Log.info("Use Coarse labeled dataset for training.")
-            image_dir = os.path.join(root_dir, 'coarse/image')
-            label_dir = os.path.join(root_dir, 'coarse/label')
+        #     for file_name in files:
+        #         image_name = '.'.join(file_name.split('.')[:-1])
+        #         img_path = os.path.join(image_dir, '{}'.format(file_name))
+        #         label_path = os.path.join(label_dir, image_name + '.png')
+        #         if not os.path.exists(label_path) or not os.path.exists(img_path):
+        #             Log.error('Label Path: {} {} not exists.'.format(label_path, img_path))
+        #             continue
 
-            for file_name in os.listdir(label_dir):
-                image_name = '.'.join(file_name.split('.')[:-1])
-                img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
-                label_path = os.path.join(label_dir, file_name)
-                if not os.path.exists(label_path) or not os.path.exists(img_path):
-                    Log.error('Label Path: {} not exists.'.format(label_path))
-                    continue
+        #         img_list.append(img_path)
+        #         label_list.append(label_path)
+        #         name_list.append(image_name)
 
-                img_list.append(img_path)
-                label_list.append(label_path)
-                name_list.append(image_name)
+        # if dataset == 'train' and self.configer.get('data', 'include_coarse'):
+        #     Log.info("Use Coarse labeled dataset for training.")
+        #     image_dir = os.path.join(root_dir, 'coarse/image')
+        #     label_dir = os.path.join(root_dir, 'coarse/label')
+
+        #     for file_name in os.listdir(label_dir):
+        #         image_name = '.'.join(file_name.split('.')[:-1])
+        #         img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
+        #         label_path = os.path.join(label_dir, file_name)
+        #         if not os.path.exists(label_path) or not os.path.exists(img_path):
+        #             Log.error('Label Path: {} not exists.'.format(label_path))
+        #             continue
+
+        #         img_list.append(img_path)
+        #         label_list.append(label_path)
+        #         name_list.append(image_name)
                 
-        if dataset == 'train' and self.configer.get('data', 'include_atr'):
-            Log.info("Use ATR dataset for training.")
-            image_dir = os.path.join(root_dir, 'atr/image')
-            label_dir = os.path.join(root_dir, 'atr/label')
+        # if dataset == 'train' and self.configer.get('data', 'include_atr'):
+        #     Log.info("Use ATR dataset for training.")
+        #     image_dir = os.path.join(root_dir, 'atr/image')
+        #     label_dir = os.path.join(root_dir, 'atr/label')
 
-            for file_name in os.listdir(label_dir):
-                image_name = '.'.join(file_name.split('.')[:-1])
-                img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
-                label_path = os.path.join(label_dir, file_name)
-                if not os.path.exists(label_path) or not os.path.exists(img_path):
-                    Log.error('Label Path: {} not exists.'.format(label_path))
-                    continue
+        #     for file_name in os.listdir(label_dir):
+        #         image_name = '.'.join(file_name.split('.')[:-1])
+        #         img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
+        #         label_path = os.path.join(label_dir, file_name)
+        #         if not os.path.exists(label_path) or not os.path.exists(img_path):
+        #             Log.error('Label Path: {} not exists.'.format(label_path))
+        #             continue
 
-                img_list.append(img_path)
-                label_list.append(label_path)
-                name_list.append(image_name)
+        #         img_list.append(img_path)
+        #         label_list.append(label_path)
+        #         name_list.append(image_name)
 
-        if dataset == 'train' and self.configer.get('data', 'only_coarse'):
-            Log.info("Only use Coarse labeled dataset for training.")
-            image_dir = os.path.join(root_dir, 'coarse/image')
-            label_dir = os.path.join(root_dir, 'coarse/label')
+        # if dataset == 'train' and self.configer.get('data', 'only_coarse'):
+        #     Log.info("Only use Coarse labeled dataset for training.")
+        #     image_dir = os.path.join(root_dir, 'coarse/image')
+        #     label_dir = os.path.join(root_dir, 'coarse/label')
 
-            img_list.clear()
-            label_list.clear()
-            name_list.clear()
+        #     img_list.clear()
+        #     label_list.clear()
+        #     name_list.clear()
 
-            for file_name in os.listdir(label_dir):
-                image_name = '.'.join(file_name.split('.')[:-1])
-                img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
-                label_path = os.path.join(label_dir, file_name)
-                if not os.path.exists(label_path) or not os.path.exists(img_path):
-                    Log.error('Label Path: {} not exists.'.format(label_path))
-                    continue
+        #     for file_name in os.listdir(label_dir):
+        #         image_name = '.'.join(file_name.split('.')[:-1])
+        #         img_path = os.path.join(image_dir, '{}.{}'.format(image_name, img_extension))
+        #         label_path = os.path.join(label_dir, file_name)
+        #         if not os.path.exists(label_path) or not os.path.exists(img_path):
+        #             Log.error('Label Path: {} not exists.'.format(label_path))
+        #             continue
 
-                img_list.append(img_path)
-                label_list.append(label_path)
-                name_list.append(image_name)
+        #         img_list.append(img_path)
+        #         label_list.append(label_path)
+        #         name_list.append(image_name)
 
-        if dataset == 'train' and self.configer.get('data', 'only_mapillary'):
-            Log.info("Only use mapillary labeled dataset for training.")
-            image_dir = os.path.join(root_dir, 'mapillary/image')
-            label_dir = os.path.join(root_dir, 'mapillary/label')
+        # if dataset == 'train' and self.configer.get('data', 'only_mapillary'):
+        #     Log.info("Only use mapillary labeled dataset for training.")
+        #     image_dir = os.path.join(root_dir, 'mapillary/image')
+        #     label_dir = os.path.join(root_dir, 'mapillary/label')
 
-            img_list.clear()
-            label_list.clear()
-            name_list.clear()
+        #     img_list.clear()
+        #     label_list.clear()
+        #     name_list.clear()
 
-            for file_name in os.listdir(label_dir):
-                image_name = '.'.join(file_name.split('.')[:-1])
-                img_path = os.path.join(image_dir, '{}.{}'.format(image_name, "jpg"))
-                label_path = os.path.join(label_dir, file_name)
-                if not os.path.exists(label_path) or not os.path.exists(img_path):
-                    Log.error('Label Path: {} not exists.'.format(label_path))
-                    continue
+        #     for file_name in os.listdir(label_dir):
+        #         image_name = '.'.join(file_name.split('.')[:-1])
+        #         img_path = os.path.join(image_dir, '{}.{}'.format(image_name, "jpg"))
+        #         label_path = os.path.join(label_dir, file_name)
+        #         if not os.path.exists(label_path) or not os.path.exists(img_path):
+        #             Log.error('Label Path: {} not exists.'.format(label_path))
+        #             continue
 
-                img_list.append(img_path)
-                label_list.append(label_path)
-                name_list.append(image_name)
+        #         img_list.append(img_path)
+        #         label_list.append(label_path)
+        #         name_list.append(image_name)
 
         return img_list, label_list, name_list
 

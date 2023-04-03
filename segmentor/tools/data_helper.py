@@ -34,7 +34,7 @@ class DataHelper:
         elif self.conditions.use_dt_offset:
             inputs = ['img', 'distance_map', 'angle_map']
         else:
-            inputs = ['img']
+            inputs = ['img']   # 不偏移
 
         return inputs
 
@@ -114,10 +114,12 @@ class DataHelper:
             device_ids = list(range(len(self.configer.get('gpu'))))
             return split_and_cuda(seq, device_ids)
         else:
-            return self.trainer.module_runner.to_device(*seq, force_list=force_list)
+            return self.trainer.module_runner.to_device(*seq, force_list=force_list)   # 送入device
 
+
+    # 数据准备
     def prepare_data(self, data_dict, want_reverse=False):
-
+        # input_keys = ['img']       target_keys = ['labelmap']   生成字典data_dict的关键字
         input_keys, target_keys = self.input_keys(), self.target_keys()
 
         if self.conditions.use_ground_truth:
@@ -126,13 +128,13 @@ class DataHelper:
         Log.info_once('Input keys: {}'.format(input_keys))
         Log.info_once('Target keys: {}'.format(target_keys))
 
-        inputs = [data_dict[k] for k in input_keys]
-        batch_size = len(inputs[0])
-        targets = [data_dict[k] for k in target_keys]
+        inputs = [data_dict[k] for k in input_keys]    # 将data_dict['img']给inputs
+        batch_size = len(inputs[0])   # bs,c,w,h
+        targets = [data_dict[k] for k in target_keys]  # 将data_dict['labelmap']给targets
 
         sequences = [
-            self._prepare_sequence(inputs, force_list=True),
-            self._prepare_sequence(targets, force_list=False)
+            self._prepare_sequence(inputs, force_list=True),     # 送入device  
+            self._prepare_sequence(targets, force_list=False)    # 组织成列表形式
         ]
         if want_reverse:
             rev_data_dict = self._reverse_data_dict(data_dict)

@@ -87,12 +87,13 @@ class ModelManager(object):
         self.configer = configer
 
     def semantic_segmentor(self):
-        model_name = self.configer.get('network', 'model_name')
+        model_name = self.configer.get('network', 'model_name')  # 获取model name
 
         if model_name not in SEG_MODEL_DICT:
             Log.error('Model: {} not valid!'.format(model_name))
             exit(1)
 
-        model = SEG_MODEL_DICT[model_name](self.configer)
+        model = SEG_MODEL_DICT[model_name](self.configer)  # SEG_MODEL_DICT[model_name]= HRNet_W48_OCR
+        # model = HRNet_W48_OCR(self.configer)
 
         return model

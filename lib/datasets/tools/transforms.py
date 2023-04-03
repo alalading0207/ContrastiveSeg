@@ -30,7 +30,7 @@ class Normalize(object):
 
     def __call__(self, inputs):
         inputs = inputs.div(self.div_value)
-        for t, m, s in zip(inputs, self.mean, self.std):
+        for t, m, s in zip(inputs, self.mean, self.std):    # ch是3 所以是循环
             t.sub_(m).div_(s)
 
         return inputs
@@ -88,11 +88,11 @@ class ToLabel(object):
         return torch.from_numpy(np.array(inputs)).long()
 
 
-class ReLabel(object):
+class ReLabel(object):    # ReLabel(255, -1)  去除背景值
     """
-      255 indicate the background, relabel 255 to some value.
+      255 indicate the background, relabel 255 to some value. 255表示背景,将255重新标记为某个值
     """
-    def __init__(self, olabel, nlabel):
+    def __init__(self, olabel, nlabel):  
         self.olabel = olabel
         self.nlabel = nlabel
 
@@ -103,7 +103,7 @@ class ReLabel(object):
         return inputs
 
 
-class Compose(object):
+class Compose(object):   # 组合几种变换（trans）
 
     def __init__(self, transforms):
         self.transforms = transforms

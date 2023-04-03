@@ -172,6 +172,7 @@ class FSCELoss(nn.Module):
         self.configer = configer
         weight = None
         if self.configer.exists('loss', 'params') and 'ce_weight' in self.configer.get('loss', 'params'):
+            # "ce_weight": [0.8373, 0.9180, 0.8660, 1.0345, 1.0166, 0.9969, 0.9754......
             weight = self.configer.get('loss', 'params')['ce_weight']
             weight = torch.FloatTensor(weight).cuda()
 

@@ -744,13 +744,13 @@ class HRNetBackbone(object):
         self.configer = configer
 
     def __call__(self):
-        arch = self.configer.get('network', 'backbone')
-        resume = self.configer.get('network', 'resume')
+        arch = self.configer.get('network', 'backbone')   # 例如：hrnet48
+        resume = self.configer.get('network', 'resume')   # None 则不是续训
         from lib.models.backbones.hrnet.hrnet_config import MODEL_CONFIGS
 
         if arch == 'hrnet18':
             arch_net = HighResolutionNet(MODEL_CONFIGS['hrnet18'],
-                                         bn_type='torchsyncbn',
+                                         bn_type=self.configer.get('network', 'bn_type'),    # torchsyncbn/torhbn
                                          bn_momentum=0.1)
             if resume is None:
                 arch_net = ModuleHelper.load_model(arch_net,
@@ -760,7 +760,7 @@ class HRNetBackbone(object):
 
         elif arch == 'hrnet32':
             arch_net = HighResolutionNet(MODEL_CONFIGS['hrnet32'],
-                                         bn_type='torchsyncbn',
+                                         bn_type=self.configer.get('network', 'bn_type'),
                                          bn_momentum=0.1)
             if resume is None:
                 arch_net = ModuleHelper.load_model(arch_net,
@@ -770,17 +770,17 @@ class HRNetBackbone(object):
 
         elif arch == 'hrnet48':
             arch_net = HighResolutionNet(MODEL_CONFIGS['hrnet48'],
-                                         bn_type='torchsyncbn',
+                                         bn_type=self.configer.get('network', 'bn_type'),
                                          bn_momentum=0.1)
             if resume is None:
                 arch_net = ModuleHelper.load_model(arch_net,
                                                    pretrained=self.configer.get('network', 'pretrained'),
                                                    all_match=False,
-                                                   network='hrnet')
+                                                   network='hrnet')  # 导入预训练模型
 
         elif arch == 'hrnet64':
             arch_net = HighResolutionNet(MODEL_CONFIGS['hrnet64'],
-                                         bn_type='torchsyncbn',
+                                         bn_type=self.configer.get('network', 'bn_type'),   
                                          bn_momentum=0.1)
             if resume is None:
                 arch_net = ModuleHelper.load_model(arch_net,

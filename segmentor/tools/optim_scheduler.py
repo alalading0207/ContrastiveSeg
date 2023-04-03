@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from lib.utils.tools.logger import Logger as Log
 
 
-class WarmupCosineSchedule(LambdaLR):
+class WarmupCosineSchedule(LambdaLR):   # Warmup时的优化器和学习策略
     """ Linear warmup and then cosine decay.
         Linearly increases learning rate from 0 to 1 over `warmup_steps` training steps.
         Decreases learning rate from 1. to 0. over remaining `t_total - warmup_steps` steps following a cosine curve.
@@ -39,11 +39,11 @@ class WarmupCosineSchedule(LambdaLR):
         return max(0.0, 0.5 * (1. + math.cos(math.pi * float(self.cycles) * 2.0 * progress)))
 
 
-class OptimScheduler(object):
+class OptimScheduler(object):    # 优化器和学习策略
     def __init__(self, configer):
         self.configer = configer
 
-    def init_optimizer(self, net_params):
+    def init_optimizer(self, net_params):   # 选择优化器类型
         optimizer = None
         if self.configer.get('optim', 'optim_method') == 'sgd':
             optimizer = SGD(net_params,
@@ -69,6 +69,7 @@ class OptimScheduler(object):
             Log.error('Optimizer {} is not valid.'.format(self.configer.get('optim', 'optim_method')))
             exit(1)
 
+        # 获取学习策略、初始化学习策略  例如：lambda_poly
         policy = self.configer.get('lr', 'lr_policy')
 
         scheduler = None
@@ -93,7 +94,7 @@ class OptimScheduler(object):
                 lambda_poly = lambda iters: pow((1.0 - iters / self.configer.get('solver', 'max_iters')),
                                                 self.configer.get('lr', 'lambda_poly')['power'])
             else:
-                Log.info('Use lambda_poly policy with default power 0.9')
+                Log.info('Use lambda_poly policy with default power 0.9')  # 执行这种策略
                 lambda_poly = lambda iters: pow((1.0 - iters / self.configer.get('solver', 'max_iters')), 0.9)
             scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_poly)
 

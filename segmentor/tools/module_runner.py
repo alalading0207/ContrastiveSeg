@@ -33,11 +33,11 @@ class ModuleRunner(object):
         self.configer.add(['last_iters'], 0)
         self.configer.add(['epoch'], 0)
         self.configer.add(['last_epoch'], 0)
-        self.configer.add(['max_performance'], 0.0)
+        self.configer.add(['max_performance'], 0.0)  # 初始化最佳为0（方便之后比较）
         self.configer.add(['performance'], 0.0)
-        self.configer.add(['min_val_loss'], 9999.0)
+        self.configer.add(['min_val_loss'], 9999.0)  # 初始化小为999（方便之后比较）
         self.configer.add(['val_loss'], 9999.0)
-        if not self.configer.exists('network', 'bn_type'):
+        if not self.configer.exists('network', 'bn_type'):   # config里'network：bn_type'是'torchsyncbn'
             self.configer.add(['network', 'bn_type'], 'torchbn')
 
         # if self.configer.get('phase') == 'train':
@@ -45,19 +45,19 @@ class ModuleRunner(object):
 
         Log.info('BN Type is {}.'.format(self.configer.get('network', 'bn_type')))
 
-    def to_device(self, *params, force_list=False):
+    def to_device(self, *params, force_list=False):   # 送入device
         if is_distributed():
-            device = torch.device('cuda:{}'.format(get_rank()))
+            device = torch.device('cuda:{}'.format(get_rank()))   # 获取到一个gpu
         else:
             device = torch.device('cpu' if self.configer.get('gpu') is None else 'cuda')
         return_list = list()
-        for i in range(len(params)):
-            return_list.append(params[i].to(device))
+        for i in range(len(params)):   # params 是 hrnet  
+            return_list.append(params[i].to(device))  # 将hrnet的所有层参数都送入device
 
         if force_list:
-            return return_list
+            return return_list   
         else:
-            return return_list[0] if len(params) == 1 else return_list
+            return return_list[0] if len(params) == 1 else return_list   # return_list[0] 因为只有一个params
 
     def _make_parallel(self, net):
         if is_distributed():
@@ -75,7 +75,7 @@ class ModuleRunner(object):
 
         return DataParallelModel(net, gather_=self.configer.get('network', 'gathered'))
 
-    def load_net(self, net):
+    def load_net(self, net):    # 导入网络到GPU
         net = self.to_device(net)
         net = self._make_parallel(net)
 
@@ -83,7 +83,7 @@ class ModuleRunner(object):
             net = net.to(torch.device('cpu' if self.configer.get('gpu') is None else 'cuda'))
 
         net.float()
-        if self.configer.get('network', 'resume') is not None:
+        if self.configer.get('network', 'resume') is not None:  # 如果是断点续练。。
             Log.info('Loading checkpoint from {}...'.format(self.configer.get('network', 'resume')))
             resume_dict = torch.load(self.configer.get('network', 'resume'), map_location=lambda storage, loc: storage)
             if 'state_dict' in resume_dict:
@@ -119,7 +119,7 @@ class ModuleRunner(object):
         return net
 
     @staticmethod
-    def load_state_dict(module, state_dict, strict=False):
+    def load_state_dict(module, state_dict, strict=False):  # 导入模型参数字典
         """Load state_dict to a module.
         This method is modified from :meth:`torch.nn.Module.load_state_dict`.
         Default value for ``strict`` is set to ``False`` and the message for
@@ -165,7 +165,7 @@ class ModuleRunner(object):
             else:
                 Log.warn(err_msg)
 
-    def save_net(self, net, save_mode='iters', experiment=None):
+    def save_net(self, net, save_mode='iters', experiment=None):    #存储模型
         if is_distributed() and get_rank() != 0:
             return
 
@@ -225,7 +225,7 @@ class ModuleRunner(object):
                 primary_metric=("mIoU", "maximize")
             )
 
-    def freeze_bn(self, net, syncbn=False):
+    def freeze_bn(self, net, syncbn=False):    # 固定/冷冻bn层
         for m in net.modules():
             if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
                 m.eval()
@@ -235,7 +235,7 @@ class ModuleRunner(object):
                 if isinstance(m, BatchNorm2d) or isinstance(m, BatchNorm1d):
                     m.eval()
 
-    def clip_grad(self, model, max_grad=10.):
+    def clip_grad(self, model, max_grad=10.):   # 修剪梯度：基于梯度范数计算梯度裁剪系数
         """Computes a gradient clipping coefficient based on gradient norm."""
         total_norm = 0
         for p in model.parameters():
@@ -250,9 +250,9 @@ class ModuleRunner(object):
             if p.requires_grad:
                 p.grad.mul_(norm)
 
-    def gather(self, outputs, target_device=None, dim=0):
+    def gather(self, outputs, target_device=None, dim=0):  # 单卡用不到
         r"""
-        Gathers tensors from different GPUs on a specified device
+        Gathers tensors from different GPUs on a specified device 从指定设备上的不同gpu收集张量
           (-1 means the CPU).
         """
         if not self.configer.get('network', 'gathered'):
@@ -264,11 +264,11 @@ class ModuleRunner(object):
         else:
             return outputs
 
-    def get_lr(self, optimizer):
+    def get_lr(self, optimizer):    # 获得学习率
 
         return [param_group['lr'] for param_group in optimizer.param_groups]
 
-    def warm_lr(self, iters, scheduler, optimizer, backbone_list=(0, )):
+    def warm_lr(self, iters, scheduler, optimizer, backbone_list=(0, )):  # warm up
         """Sets the learning rate
         # Adapted from PyTorch Imagenet example:
         # https://github.com/pytorch/examples/blob/master/imagenet/main.py

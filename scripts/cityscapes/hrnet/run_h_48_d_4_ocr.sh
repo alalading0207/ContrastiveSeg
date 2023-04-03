@@ -3,11 +3,14 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd $SCRIPTPATH
 cd ../../../
 
-DATA_ROOT=$3
-SCRATCH_ROOT=$4
+# DATA_ROOT=$3   # 是传递给脚本的第三个参数
+# SCRATCH_ROOT=$4
+DATA_ROOT="/gemini/code"
+SCRATCH_ROOT="/gemini/code/ContrastiveSeg"
 ASSET_ROOT=${DATA_ROOT}
 
-DATA_DIR="${DATA_ROOT}/Cityscapes"
+DATA_DIR="${DATA_ROOT}/Cityscapes"  
+# DATA_DIR="${DATA_ROOT}/gemini/code/Cityscapes"
 SAVE_DIR="${SCRATCH_ROOT}/Cityscapes/seg_results/"
 BACKBONE="hrnet48"
 
@@ -22,10 +25,35 @@ LOG_FILE="${SCRATCH_ROOT}/logs/Cityscapes/${CHECKPOINTS_NAME}.log"
 echo "Logging to $LOG_FILE"
 mkdir -p `dirname $LOG_FILE`
 
-PRETRAINED_MODEL="${ASSET_ROOT}/hrnetv2_w48_imagenet_pretrained.pth"
+# PRETRAINED_MODEL=None
+# PRETRAINED_MODEL=null/None/$None
+# PRETRAINED_MODEL="${ASSET_ROOT}/hrnetv2_w48_imagenet_pretrained.pth"
 MAX_ITERS=40000
-BATCH_SIZE=8
+# BATCH_SIZE=8
+BATCH_SIZE=1
+Val_BATCH_SIZE=1
 BASE_LR=0.01
+
+# if [ "$1"x == "train"x ]; then     
+#   python -u main.py --configs ${CONFIGS} \
+#                        --drop_last y \
+#                        --phase train \
+#                        --gathered n \
+#                        --loss_balance y \
+#                        --log_to_file n \
+#                        --backbone ${BACKBONE} \
+#                        --model_name ${MODEL_NAME} \
+#                        --gpu 0 \
+#                        --data_dir ${DATA_DIR} \
+#                        --loss_type ${LOSS_TYPE} \
+#                        --max_iters ${MAX_ITERS} \
+#                        --checkpoints_root ${CHECKPOINTS_ROOT} \
+#                        --checkpoints_name ${CHECKPOINTS_NAME} \
+#                        --pretrained ${PRETRAINED_MODEL} \       下面删掉了这里
+#                        --train_batch_size ${BATCH_SIZE} \
+#                        --distributed \
+#                        --base_lr ${BASE_LR} \
+#                        2>&1 | tee ${LOG_FILE}
 
 if [ "$1"x == "train"x ]; then
   python -u main.py --configs ${CONFIGS} \
@@ -36,14 +64,14 @@ if [ "$1"x == "train"x ]; then
                        --log_to_file n \
                        --backbone ${BACKBONE} \
                        --model_name ${MODEL_NAME} \
-                       --gpu 0 1 2 3 \
+                       --gpu 0 \
                        --data_dir ${DATA_DIR} \
                        --loss_type ${LOSS_TYPE} \
                        --max_iters ${MAX_ITERS} \
                        --checkpoints_root ${CHECKPOINTS_ROOT} \
                        --checkpoints_name ${CHECKPOINTS_NAME} \
-                       --pretrained ${PRETRAINED_MODEL} \
                        --train_batch_size ${BATCH_SIZE} \
+                       --val_batch_size ${Val_BATCH_SIZE} \
                        --distributed \
                        --base_lr ${BASE_LR} \
                        2>&1 | tee ${LOG_FILE}
@@ -61,7 +89,7 @@ elif [ "$1"x == "resume"x ]; then
                        --max_iters ${MAX_ITERS} \
                        --data_dir ${DATA_DIR} \
                        --loss_type ${LOSS_TYPE} \
-                       --gpu 0 1 2 3 \
+                       --gpu 0 \
                        --resume_continue y \
                        --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
                        --checkpoints_name ${CHECKPOINTS_NAME} \
@@ -71,7 +99,7 @@ elif [ "$1"x == "resume"x ]; then
 elif [ "$1"x == "val"x ]; then
   python -u main.py --configs ${CONFIGS} --drop_last y  --data_dir ${DATA_DIR} \
                        --backbone ${BACKBONE} --model_name ${MODEL_NAME} --checkpoints_name ${CHECKPOINTS_NAME} \
-                       --phase test --gpu 0 1 2 3 --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
+                       --phase test --gpu 0  --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
                        --loss_type ${LOSS_TYPE} --test_dir ${DATA_DIR}/val/image \
                        --out_dir ${SAVE_DIR}${CHECKPOINTS_NAME}_val_ms
 
@@ -100,14 +128,14 @@ elif [ "$1"x == "test"x ]; then
     echo "[single scale] test"
     python -u main.py --configs ${CONFIGS} --drop_last y --data_dir ${DATA_DIR} \
                          --backbone ${BACKBONE} --model_name ${MODEL_NAME} --checkpoints_name ${CHECKPOINTS_NAME} \
-                         --phase test --gpu 0 1 2 3 --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
+                         --phase test --gpu 0 --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
                          --test_dir ${DATA_DIR}/test --log_to_file n \
                          --out_dir ${SAVE_DIR}${CHECKPOINTS_NAME}_test_ss
   else
     echo "[multiple scale + flip] test"
     python -u main.py --configs ${CONFIGS_TEST} --drop_last y --data_dir ${DATA_DIR} \
                          --backbone ${BACKBONE} --model_name ${MODEL_NAME} --checkpoints_name ${CHECKPOINTS_NAME} \
-                         --phase test --gpu 0 1 2 3 --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
+                         --phase test --gpu 0 --resume ${CHECKPOINTS_ROOT}/checkpoints/cityscapes/${CHECKPOINTS_NAME}_latest.pth \
                          --test_dir ${DATA_DIR}/test --log_to_file n \
                          --out_dir ${SAVE_DIR}${CHECKPOINTS_NAME}_test_ms
   fi

@@ -31,14 +31,14 @@ class BackboneSelector(object):
         self.configer = configer
 
     def get_backbone(self, **params):
-        backbone = self.configer.get('network', 'backbone')
+        backbone = self.configer.get('network', 'backbone')   # 例如 'hrnet48'
 
         model = None
         if ('resnet' in backbone or 'resnext' in backbone or 'resnest' in backbone) and 'senet' not in backbone:
             model = ResNetBackbone(self.configer)(**params)
 
         elif 'hrne' in backbone:
-            model = HRNetBackbone(self.configer)(**params)
+            model = HRNetBackbone(self.configer)(**params)   # 先初始化再传参数
 
         elif 'pcpvt' in backbone:
             model = PCPVTBackbone(self.configer)(**params)

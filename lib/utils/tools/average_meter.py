@@ -20,8 +20,8 @@ class AverageMeter(object):
         self.sum = 0.
         self.count = 0
 
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
+    def update(self, val, n=1):   # val是value的意思
+        self.val = val       # 当前值
+        self.sum += val * n  # 总值
+        self.count += n      # 当前数
+        self.avg = self.sum / self.count   # 平均值

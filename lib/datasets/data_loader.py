@@ -35,9 +35,10 @@ class DataLoader(object):
         self.configer = configer
 
         from lib.datasets.tools import cv2_aug_transforms
-        self.aug_train_transform = cv2_aug_transforms.CV2AugCompose(self.configer, split='train')
+        self.aug_train_transform = cv2_aug_transforms.CV2AugCompose(self.configer, split='train')  # ？
         self.aug_val_transform = cv2_aug_transforms.CV2AugCompose(self.configer, split='val')
 
+        '''归一化在这里出现'''
         self.img_transform = trans.Compose([
             trans.ToTensor(),
             trans.Normalize(div_value=self.configer.get('normalize', 'div_value'),
@@ -48,14 +49,19 @@ class DataLoader(object):
             trans.ToLabel(),
             trans.ReLabel(255, -1), ])
 
-    def get_dataloader_sampler(self, klass, split, dataset):
+    '''实例化loader(例如:DefaultLoader): 数据导入的模式、数据路径'''
+    def get_dataloader_sampler(self, klass, split, dataset):   
 
         from lib.datasets.loader.multi_dataset_loader import MultiDatasetLoader, MultiDatasetTrainingSampler
 
-        root_dir = self.configer.get('data', 'data_dir')
-        if isinstance(root_dir, list) and len(root_dir) == 1:
+        root_dir = self.configer.get('data', 'data_dir')  #获取根目录,  data_dir在sh文件中被设置
+        print('sssssssssssss',root_dir)   # /Cityscapes
+        print('sssssssssssss',dataset)   #  /train
+
+        if isinstance(root_dir, list) and len(root_dir) == 1:   # 获取的是字典的value 所以root_dir是list型并且只有一个元素
             root_dir = root_dir[0]
 
+        # 其他参数:dataset模式、影像和标签的transform
         kwargs = dict(
             dataset=dataset,
             aug_transform=(self.aug_train_transform if split == 'train' else self.aug_val_transform),
@@ -63,9 +69,10 @@ class DataLoader(object):
             label_transform=self.label_transform,
             configer=self.configer
         )
-
-        if isinstance(root_dir, str):
-            loader = klass(root_dir, **kwargs)
+        # loader
+        if isinstance(root_dir, str):  
+            # init klass
+            loader = klass(root_dir, **kwargs)   # 给klass里传入root_dir和其他参数  相当于DefaultLoader(root_dir, **kwargs)
             multi_dataset = False
         elif isinstance(root_dir, list):
             loader = MultiDatasetLoader(root_dir, klass, **kwargs)
@@ -74,16 +81,17 @@ class DataLoader(object):
         else:
             raise RuntimeError('Unknown root dir {}'.format(root_dir))
 
-        if split == 'train':
+        # sampler
+        if split == 'train':   # 如果是train数据
             if is_distributed() and multi_dataset:
                 raise RuntimeError('Currently multi dataset doesn\'t support distributed.')
 
             if is_distributed():
-                sampler = torch.utils.data.distributed.DistributedSampler(loader)
+                sampler = torch.utils.data.distributed.DistributedSampler(loader)  # sampler 
             elif multi_dataset:
                 sampler = MultiDatasetTrainingSampler(loader)
             else:
-                sampler = None
+                sampler = None  
 
         elif split == 'val':
 
@@ -94,7 +102,8 @@ class DataLoader(object):
 
         return loader, sampler
 
-    def get_trainloader(self):
+
+    def get_trainloader(self):  # 获取trainloader
         if self.configer.exists('data', 'use_edge') and self.configer.get('data', 'use_edge') == 'ce2p':
             """
             ce2p manner:
@@ -130,18 +139,18 @@ class DataLoader(object):
             + support distributed training (the performance is more un-stable than non-distributed manner)
             """
             Log.info('use the DefaultLoader for train...')
-            klass = DefaultLoader
-        loader, sampler = self.get_dataloader_sampler(klass, 'train', 'train')
+            klass = DefaultLoader    # 获取trainloader=DefaultLoader
+        loader, sampler = self.get_dataloader_sampler(klass, 'train', 'train')   # 获得数据根目录、参数、sampler
         trainloader = data.DataLoader(
-            loader,
+            loader,  # loader是 实例klass  获得参数后的  实例
             batch_size=self.configer.get('train', 'batch_size') // get_world_size(), pin_memory=True,
             num_workers=self.configer.get('data', 'workers') // get_world_size(),
             sampler=sampler,
-            shuffle=(sampler is None),
-            drop_last=self.configer.get('data', 'drop_last'),
+            shuffle=(sampler is None),   # sampler是None时   需要shuffle
+            drop_last=self.configer.get('data', 'drop_last'),   #丢掉多余的
             collate_fn=lambda *args: collate(
                 *args, trans_dict=self.configer.get('train', 'data_transformer')
-            )
+            )   # collate_fn是一个调用旧函数collate的柯里化新函数   collate_fn（*args)只用给参数*args即可
         )
         return trainloader
 

@@ -54,15 +54,15 @@ class Logger(object):
              stdout_level=None):
         Logger.logfile_level = logfile_level
         Logger.log_file = log_file
-        Logger.log_format = log_format
-        Logger.rewrite = rewrite
-        Logger.stdout_level = stdout_level
+        Logger.log_format = log_format   # 格式：'%(asctime)s %(levelname)-7s %(message)s'
+        Logger.rewrite = rewrite         # True
+        Logger.stdout_level = stdout_level   # info
 
         Logger.logger = logging.getLogger()
         Logger.logger.handlers = []
         fmt = logging.Formatter(Logger.log_format)
 
-        if Logger.logfile_level is not None:
+        if Logger.logfile_level is not None:    # logfile_level=None 这步跳过
             filemode = 'w'
             if not Logger.rewrite:
                 filemode = 'a'
@@ -83,12 +83,12 @@ class Logger(object):
 
             Logger.logger.addHandler(fh)
 
-        if stdout_level is not None:
-            if Logger.logfile_level is None:
-                Logger.logger.setLevel(LOG_LEVEL_DICT[Logger.stdout_level])
+        if stdout_level is not None:     # stdout_level='info' 跳进去
+            if Logger.logfile_level is None:   # logfile_level=None 跳进去
+                Logger.logger.setLevel(LOG_LEVEL_DICT[Logger.stdout_level])   #python logger的功能
 
             console = logging.StreamHandler()
-            if Logger.stdout_level not in LOG_LEVEL_DICT:
+            if Logger.stdout_level not in LOG_LEVEL_DICT:  # 不跳进去
                 print('Invalid logging level: {}'.format(Logger.stdout_level))
                 return
 
@@ -184,13 +184,13 @@ class Logger(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--logfile_level', default="debug", type=str,
-                        dest='logfile_level', help='To set the log level to files.')
+                        dest='logfile_level', help='To set the log level to files.')  # 设置log等级
     parser.add_argument('--stdout_level', default=None, type=str,
-                        dest='stdout_level', help='To set the level to print to screen.')
+                        dest='stdout_level', help='To set the level to print to screen.')  # 设置打印等级
     parser.add_argument('--log_file', default="./default.log", type=str,
-                        dest='log_file', help='The path of log files.')
+                        dest='log_file', help='The path of log files.')  # log路径
     parser.add_argument('--log_format', default="%(asctime)s %(levelname)-7s %(message)s",
-                        type=str, dest='log_format', help='The format of log messages.')
+                        type=str, dest='log_format', help='The format of log messages.')  # log格式
     parser.add_argument('--rewrite', default=False, type=bool,
                         dest='rewrite', help='Clear the log files existed.')
 

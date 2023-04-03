@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('--configs', default=None, type=str,
                         dest='configs', help='The file of the hyper parameters.')
     parser.add_argument('--phase', default='train', type=str,
-                        dest='phase', help='The phase of module.')
+                        dest='phase', help='The phase of module.')    # phase:train/val/test
     parser.add_argument('--gpu', default=[0, 1, 2, 3], nargs='+', type=int,
                         dest='gpu', help='The gpu list used.')
 
@@ -129,15 +129,15 @@ if __name__ == "__main__":
     parser.add_argument('--is_warm', type=str2bool, nargs='?', default=False,
                         dest='lr:is_warm', help='Whether to warm training.')
 
-    # ***********  Params for display.  **********
+    # ***********  Params for display. solver **********
     parser.add_argument('--max_epoch', default=None, type=int,
-                        dest='solver:max_epoch', help='The max epoch of training.')
+                        dest='solver:max_epoch', help='The max epoch of training.')   # 最大epoch数
     parser.add_argument('--max_iters', default=None, type=int,
-                        dest='solver:max_iters', help='The max iters of training.')
+                        dest='solver:max_iters', help='The max iters of training.')   # 最大iter数
     parser.add_argument('--display_iter', default=None, type=int,
-                        dest='solver:display_iter', help='The display iteration of train logs.')
+                        dest='solver:display_iter', help='The display iteration of train logs.')  # 训练日志的显示迭代
     parser.add_argument('--test_interval', default=None, type=int,
-                        dest='solver:test_interval', help='The test interval of validation.')
+                        dest='solver:test_interval', help='The test interval of validation.')  # 验证的测试间隔  多少次迭代验证一次
 
     # ***********  Params for logging.  **********
     parser.add_argument('--logfile_level', default=None, type=str,
@@ -185,22 +185,23 @@ if __name__ == "__main__":
     cudnn.benchmark = args_parser.cudnn
 
     configer = Configer(args_parser=args_parser)
-    data_dir = configer.get('data', 'data_dir')
+    data_dir = configer.get('data', 'data_dir')   # data_dir是例如：'/gemini/code/Cityscapes'
     if isinstance(data_dir, str):
         data_dir = [data_dir]
     abs_data_dir = [os.path.expanduser(x) for x in data_dir]
     configer.update(['data', 'data_dir'], abs_data_dir)
 
     project_dir = os.path.dirname(os.path.realpath(__file__))
-    configer.add(['project_dir'], project_dir)
+    configer.add(['project_dir'], project_dir)   # 本项目路径'/gemini/code/ContrastiveSeg'
 
     if configer.get('logging', 'log_to_file'):
         log_file = configer.get('logging', 'log_file')
         new_log_file = '{}_{}'.format(log_file, time.strftime("%Y-%m-%d_%X", time.localtime()))
         configer.update(['logging', 'log_file'], new_log_file)
     else:
-        configer.update(['logging', 'logfile_level'], None)
+        configer.update(['logging', 'logfile_level'], None)   # 没传这个参数，更新为None
 
+    # log的初始化，使用Logger class声明几个存储message的变量
     Log.init(logfile_level=configer.get('logging', 'logfile_level'),
              stdout_level=configer.get('logging', 'stdout_level'),
              log_file=configer.get('logging', 'log_file'),
@@ -208,10 +209,10 @@ if __name__ == "__main__":
              rewrite=configer.get('logging', 'rewrite'))
 
     model = None
-    if configer.get('method') == 'fcn_segmentor':
+    if configer.get('method') == 'fcn_segmentor':    # json文件里 "method": "fcn_segmentor"
         if configer.get('phase') == 'train':
             from segmentor.trainer import Trainer
-            model = Trainer(configer)
+            model = Trainer(configer)   # 实例化Trainer
         elif configer.get('phase') == 'test':
             from segmentor.tester import Tester 
             model = Tester(configer)    

@@ -121,11 +121,11 @@ class ModuleHelper(object):
             exit(1)
 
     @staticmethod
-    def load_model(model, pretrained=None, all_match=True, network='resnet101'):
+    def load_model(model, pretrained=None, all_match=True, network='resnet101'):  # 导入预训练模型
         if pretrained is None:
             return model
 
-        if all_match:
+        if all_match:   # 完全匹配时
             Log.info('Loading pretrained model:{}'.format(pretrained))
             pretrained_dict = torch.load(pretrained, map_location=lambda storage, loc: storage)
             model_dict = model.state_dict()

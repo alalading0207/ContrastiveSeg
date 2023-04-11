@@ -77,7 +77,7 @@ class ModuleRunner(object):
 
     def load_net(self, net):    # 导入网络到GPU
         net = self.to_device(net)
-        net = self._make_parallel(net)
+        # net = self._make_parallel(net)    # 设置并行
 
         if not is_distributed():
             net = net.to(torch.device('cpu' if self.configer.get('gpu') is None else 'cuda'))
@@ -176,22 +176,23 @@ class ModuleRunner(object):
         if self.configer.get('checkpoints', 'checkpoints_root') is None:
             checkpoints_dir = os.path.join(self.configer.get('project_dir'),
                                            self.configer.get('checkpoints', 'checkpoints_dir'))
-        else:
-            checkpoints_dir = os.path.join(self.configer.get('checkpoints', 'checkpoints_root'),
-                                           self.configer.get('checkpoints', 'checkpoints_dir'))
+        else:  # 设置checkpoints路径
+            checkpoints_dir = os.path.join(self.configer.get('checkpoints', 'checkpoints_root'),  # "{SCRATCH_ROOT}/"
+                                           self.configer.get('checkpoints', 'checkpoints_dir'))   # "./checkpoints/cityscapes"
 
         if not os.path.exists(checkpoints_dir):
             os.makedirs(checkpoints_dir)
 
         latest_name = '{}_latest.pth'.format(self.configer.get('checkpoints', 'checkpoints_name'))
-        torch.save(state, os.path.join(checkpoints_dir, latest_name))
-        if save_mode == 'performance':
+        torch.save(state, os.path.join(checkpoints_dir, latest_name))   # 不论哪种save_mode 都要先保存最后一次checkpoint
+        
+        if save_mode == 'performance':   # max_performance
             if self.configer.get('performance') > self.configer.get('max_performance'):
                 latest_name = '{}_max_performance.pth'.format(self.configer.get('checkpoints', 'checkpoints_name'))
                 torch.save(state, os.path.join(checkpoints_dir, latest_name))
                 self.configer.update(['max_performance'], self.configer.get('performance'))
 
-        elif save_mode == 'val_loss':
+        elif save_mode == 'val_loss':   # min_val_loss
             if self.configer.get('val_loss') < self.configer.get('min_val_loss'):
                 latest_name = '{}_min_loss.pth'.format(self.configer.get('checkpoints', 'checkpoints_name'))
                 torch.save(state, os.path.join(checkpoints_dir, latest_name))

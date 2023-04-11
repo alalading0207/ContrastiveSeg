@@ -85,7 +85,7 @@ class Trainer(object):
         except:
             pass
 
-        self.seg_net = self.module_runner.load_net(self.seg_net)   # 上传网络到gpu上
+        self.seg_net = self.module_runner.load_net(self.seg_net)   # module_runner  上传网络到gpu上
 
         Log.info('Params Group Method: {}'.format(self.configer.get('optim', 'group_method')))  # None
         if self.configer.get('optim', 'group_method') == 'decay': 
@@ -154,9 +154,9 @@ class Trainer(object):
         start_time = time.time()
         scaler = torch.cuda.amp.GradScaler()
 
-        if "swa" in self.configer.get('lr', 'lr_policy'):    # 学习率策略为'swa'时才执行
-            normal_max_iters = int(self.configer.get('solver', 'max_iters') * 0.75)
-            swa_step_max_iters = (self.configer.get('solver', 'max_iters') - normal_max_iters) // 5 + 1
+        # if "swa" in self.configer.get('lr', 'lr_policy'):    # 学习率策略为'swa'时才执行
+        #     normal_max_iters = int(self.configer.get('solver', 'max_iters') * 0.75)
+        #     swa_step_max_iters = (self.configer.get('solver', 'max_iters') - normal_max_iters) // 5 + 1
 
         if hasattr(self.train_loader.sampler, 'set_epoch'):   # train_loader为前面获得的train数据加载器
             self.train_loader.sampler.set_epoch(self.configer.get('epoch'))  # 此步作用：分布式训练时需要在导入数据之前就suffle
@@ -176,7 +176,7 @@ class Trainer(object):
             #     )
 
             # 数据获得
-            (inputs, targets), batch_size = self.data_helper.prepare_data(data_dict)   # 送入device
+            (inputs, targets), batch_size = self.data_helper.prepare_data(data_dict)   # 从数据字典里剥离inputs 和 targets 
             self.data_time.update(time.time() - start_time)
 
             foward_start_time = time.time()
@@ -228,7 +228,7 @@ class Trainer(object):
 
             # Print the log info & reset the states.打印时间和loss
             if self.configer.get('iters') % self.configer.get('solver', 'display_iter') == 0 and \
-                    (not is_distributed() or get_rank() == 0):
+                    (not is_distributed() or get_rank() == 0):   # 每10次一输出
                 Log.info('Train Epoch: {0}\tTrain Iteration: {1}\t'
                          'Time {batch_time.sum:.3f}s / {2}iters, ({batch_time.avg:.3f})\t'
                          'Forward Time {foward_time.sum:.3f}s / {2}iters, ({foward_time.avg:.3f})\t'
@@ -248,19 +248,20 @@ class Trainer(object):
                 self.data_time.reset()
                 self.train_losses.reset()
 
-            # save checkpoints for swa 保存日志
-            if 'swa' in self.configer.get('lr', 'lr_policy') and \
-                    self.configer.get('iters') > normal_max_iters and \
-                    ((self.configer.get('iters') - normal_max_iters) % swa_step_max_iters == 0 or \
-                     self.configer.get('iters') == self.configer.get('solver', 'max_iters')):
-                self.optimizer.update_swa()
+            # # save checkpoints for swa （swa微调策略时才使用）
+            # if 'swa' in self.configer.get('lr', 'lr_policy') and \
+            #         self.configer.get('iters') > normal_max_iters and \
+            #         ((self.configer.get('iters') - normal_max_iters) % swa_step_max_iters == 0 or \
+            #          self.configer.get('iters') == self.configer.get('solver', 'max_iters')):
+            #     self.optimizer.update_swa()
 
+            # 到最大迭代次数后退出该循环
             if self.configer.get('iters') == self.configer.get('solver', 'max_iters'):
                 break
 
             # Check to val the current model.
             # if self.configer.get('epoch') % self.configer.get('solver', 'test_interval') == 0:
-            if self.configer.get('iters') % self.configer.get('solver', 'test_interval') == 0:
+            if self.configer.get('iters') % self.configer.get('solver', 'test_interval') == 0:  # 每 test_interval 验证一次
                 self.__val()
 
         self.configer.plus_one('epoch')
@@ -272,9 +273,9 @@ class Trainer(object):
         self.seg_net.eval()
         self.pixel_loss.eval()
         start_time = time.time()
-        replicas = self.evaluator.prepare_validaton()
+        replicas = self.evaluator.prepare_validaton()    # 获得None
 
-        data_loader = self.val_loader if data_loader is None else data_loader
+        data_loader = self.val_loader if data_loader is None else data_loader   # data_loader 使用 val_loader
         # 验证开始
         for j, data_dict in enumerate(data_loader):
             if j % 10 == 0:
@@ -285,7 +286,7 @@ class Trainer(object):
             if self.configer.get('dataset') == 'lip': 
                 (inputs, targets, inputs_rev, targets_rev), batch_size = self.data_helper.prepare_data(data_dict,
                                                                                                        want_reverse=True)
-            else:# 数据获得
+            else:   # 拆分字典   数据获得
                 (inputs, targets), batch_size = self.data_helper.prepare_data(data_dict)
 
             with torch.no_grad():
@@ -329,7 +330,7 @@ class Trainer(object):
                 else:
                     outputs = self.seg_net(*inputs)  # 运行网络
 
-                    try:
+                    try:   # 计算loss
                         loss = self.pixel_loss(
                             outputs, targets,
                             gathered=self.configer.get('network', 'gathered')
@@ -337,24 +338,26 @@ class Trainer(object):
                     except AssertionError as e:
                         print(len(outputs), len(targets))
 
-                    if not is_distributed():
-                        outputs = self.module_runner.gather(outputs)  # ？
+                    # if not is_distributed():
+                    #     outputs = self.module_runner.gather(outputs)  # 从指定设备上的不同gpu收集张量  单机单卡用不到
                     self.val_losses.update(loss.item(), batch_size)  # 更新val_loss
-                    if isinstance(outputs, dict):
+
+                    # 如果是字典型输出
+                    if isinstance(outputs, dict):   
                         try:
                             outputs = outputs['pred']
                         except:
                             outputs = outputs['seg']
-                    self.evaluator.update_score(outputs, data_dict['meta'])
+                    self.evaluator.update_score(outputs, data_dict['meta'])   # ？
 
             self.batch_time.update(time.time() - start_time)
             start_time = time.time()
 
-        self.evaluator.update_performance()   # 计算metric
+        self.evaluator.update_performance()   # 计算metric   先进base
 
         self.configer.update(['val_loss'], self.val_losses.avg)
         # 保存模型
-        self.module_runner.save_net(self.seg_net, save_mode='performance')
+        self.module_runner.save_net(self.seg_net, save_mode='performance')   # save_mode 参数：保存最佳的模型
         self.module_runner.save_net(self.seg_net, save_mode='val_loss')
         cudnn.benchmark = True
 
@@ -389,8 +392,9 @@ class Trainer(object):
             self.__val(data_loader=self.data_loader.get_valloader(dataset='val'))
             return
 
+        # 进入训练
         while self.configer.get('iters') < self.configer.get('solver', 'max_iters'):   # 当前迭代次数 0<40000
-            self.__train()    # 进入训练
+            self.__train()   
 
         # use swa to average the model
         if 'swa' in self.configer.get('lr', 'lr_policy'):

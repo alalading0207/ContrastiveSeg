@@ -160,7 +160,7 @@ class Configer(object):
 
         elif len(key) == 1:
             if key[0] in self.params_root:
-                return self.params_root[key[0]]
+                return self.params_root[key[0]]  # params_root = config_dict
             else:
                 Log.error('{} KeyError: {}.'.format(self._get_caller(), key))
                 exit(1)

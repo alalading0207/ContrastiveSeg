@@ -39,7 +39,7 @@ BASE_LR=0.01
 #                        --drop_last y \
 #                        --phase train \
 #                        --gathered n \
-#                        --loss_balance y \
+#                        --loss_balance y \      不用loss blance
 #                        --log_to_file n \
 #                        --backbone ${BACKBONE} \
 #                        --model_name ${MODEL_NAME} \
@@ -51,7 +51,7 @@ BASE_LR=0.01
 #                        --checkpoints_name ${CHECKPOINTS_NAME} \
 #                        --pretrained ${PRETRAINED_MODEL} \       下面删掉了这里
 #                        --train_batch_size ${BATCH_SIZE} \
-#                        --distributed \
+#                        --distributed \         不用distributed
 #                        --base_lr ${BASE_LR} \
 #                        2>&1 | tee ${LOG_FILE}
 
@@ -60,7 +60,7 @@ if [ "$1"x == "train"x ]; then
                        --drop_last y \
                        --phase train \
                        --gathered n \
-                       --loss_balance y \
+                       --loss_balance n \
                        --log_to_file n \
                        --backbone ${BACKBONE} \
                        --model_name ${MODEL_NAME} \
@@ -72,7 +72,6 @@ if [ "$1"x == "train"x ]; then
                        --checkpoints_name ${CHECKPOINTS_NAME} \
                        --train_batch_size ${BATCH_SIZE} \
                        --val_batch_size ${Val_BATCH_SIZE} \
-                       --distributed \
                        --base_lr ${BASE_LR} \
                        2>&1 | tee ${LOG_FILE}
                        

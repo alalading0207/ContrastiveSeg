@@ -78,7 +78,7 @@
       "backbone": "deepbase_resnet101_dilated8",
       "multi_grid": [1, 1, 1],
       "model_name": "base_ocnet",
-      "bn_type": "torchsyncbn",
+      "bn_type": "torchbn",
       "stride": 8,
       "factors": [[8, 8]],
       "loss_weights": {
@@ -127,7 +127,7 @@
         "ce_weight": [0.8373, 0.9180, 0.8660, 1.0345, 1.0166, 0.9969, 0.9754,
                       1.0489, 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037,
                       1.0865, 1.0955, 1.0865, 1.1529, 1.0507],
-        "ce_reduction": "elementwise_mean",
+        "ce_reduction": "mean",
         "ce_ignore_index": -1,
         "ohem_minkeep": 100000,
         "ohem_thresh": 0.9

@@ -33,7 +33,9 @@ if __name__ == "__main__":
                         dest='configs', help='The file of the hyper parameters.')
     parser.add_argument('--phase', default='train', type=str,
                         dest='phase', help='The phase of module.')
-    parser.add_argument('--gpu', default=[0, 1, 2, 3], nargs='+', type=int,
+    # parser.add_argument('--gpu', default=[0, 1, 2, 3], nargs='+', type=int,
+    #                     dest='gpu', help='The gpu list used.')
+    parser.add_argument('--gpu', default= [0], nargs='+', type=int,
                         dest='gpu', help='The gpu list used.')
 
     # ***********  Params for data.  **********
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume_continue', type=str2bool, nargs='?', default=False,
                         dest='network:resume_continue', help='Whether to continue training.')
     parser.add_argument('--finetune', type=str2bool, nargs='?', default=False,
-                        dest='network:finetune', help='Whether to start finetune.')
+                        dest='network:finetune', help='Whether to start finetune.')  # 多了这个
     parser.add_argument('--resume_eval_train', type=str2bool, nargs='?', default=True,
                         dest='network:resume_train', help='Whether to validate the training set  during resume.')
     parser.add_argument('--resume_eval_val', type=str2bool, nargs='?', default=True,
@@ -201,7 +203,7 @@ if __name__ == "__main__":
     model = None
     if configer.get('method') == 'fcn_segmentor':
         if configer.get('phase') == 'train':
-            from segmentor.trainer_contrastive import Trainer
+            from segmentor.trainer_contrastive import Trainer     # 这里不一样
             model = Trainer(configer)
         elif configer.get('phase') == 'test':
             from segmentor.tester import Tester 

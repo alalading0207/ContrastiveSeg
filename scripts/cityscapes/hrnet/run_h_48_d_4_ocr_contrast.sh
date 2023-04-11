@@ -3,8 +3,10 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd $SCRIPTPATH
 cd ../../../
 
-DATA_ROOT=$3
-SCRATCH_ROOT=$4
+# DATA_ROOT=$3   # 是传递给脚本的第三个参数
+# SCRATCH_ROOT=$4
+DATA_ROOT="/gemini/code"
+SCRATCH_ROOT="/gemini/code/ContrastiveSeg"
 ASSET_ROOT=${DATA_ROOT}
 
 DATA_DIR="${DATA_ROOT}/Cityscapes"
@@ -14,37 +16,58 @@ BACKBONE="hrnet48"
 CONFIGS="configs/cityscapes/H_48_D_4.json"
 CONFIGS_TEST="configs/cityscapes/H_48_D_4_TEST.json"
 
-MODEL_NAME="hrnet_w48_ocr_contrast"
-LOSS_TYPE="contrast_auxce_loss"
+MODEL_NAME="hrnet_w48_ocr_contrast"    # 不一样
+LOSS_TYPE="contrast_auxce_loss"        # 不一样
 CHECKPOINTS_ROOT="${SCRATCH_ROOT}/Cityscapes/"
 CHECKPOINTS_NAME="${MODEL_NAME}_lr1x_"$2
 LOG_FILE="${SCRATCH_ROOT}/logs/Cityscapes/${CHECKPOINTS_NAME}.log"
 echo "Logging to $LOG_FILE"
 mkdir -p `dirname $LOG_FILE`
 
-PRETRAINED_MODEL="${ASSET_ROOT}/hrnetv2_w48_imagenet_pretrained.pth"
+# PRETRAINED_MODEL="${ASSET_ROOT}/hrnetv2_w48_imagenet_pretrained.pth"
 MAX_ITERS=40000
-BATCH_SIZE=8
-BASE_LR=0.01
+# BATCH_SIZE=8
+BATCH_SIZE=1
+Val_BATCH_SIZE=1
+
+# if [ "$1"x == "train"x ]; then
+#   python -u main_contrastive.py --configs ${CONFIGS} \
+#                        --drop_last y \
+#                        --phase train \
+#                        --gathered n \
+#                        --loss_balance y \
+#                        --log_to_file n \
+#                        --backbone ${BACKBONE} \
+#                        --model_name ${MODEL_NAME} \
+#                        --gpu 0 1 2 3 \
+#                        --data_dir ${DATA_DIR} \
+#                        --loss_type ${LOSS_TYPE} \
+#                        --max_iters ${MAX_ITERS} \
+#                        --checkpoints_root ${CHECKPOINTS_ROOT} \
+#                        --checkpoints_name ${CHECKPOINTS_NAME} \
+#                        --pretrained ${PRETRAINED_MODEL} \
+#                        --train_batch_size ${BATCH_SIZE} \
+#                        --distributed \
+#                        --base_lr ${BASE_LR} \
+#                        2>&1 | tee ${LOG_FILE}
 
 if [ "$1"x == "train"x ]; then
   python -u main_contrastive.py --configs ${CONFIGS} \
                        --drop_last y \
                        --phase train \
                        --gathered n \
-                       --loss_balance y \
+                       --loss_balance n \
                        --log_to_file n \
                        --backbone ${BACKBONE} \
                        --model_name ${MODEL_NAME} \
-                       --gpu 0 1 2 3 \
+                       --gpu 0 \
                        --data_dir ${DATA_DIR} \
                        --loss_type ${LOSS_TYPE} \
                        --max_iters ${MAX_ITERS} \
                        --checkpoints_root ${CHECKPOINTS_ROOT} \
                        --checkpoints_name ${CHECKPOINTS_NAME} \
-                       --pretrained ${PRETRAINED_MODEL} \
                        --train_batch_size ${BATCH_SIZE} \
-                       --distributed \
+                       --val_batch_size ${Val_BATCH_SIZE} \
                        --base_lr ${BASE_LR} \
                        2>&1 | tee ${LOG_FILE}
                        

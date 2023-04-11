@@ -37,8 +37,8 @@ class Reduce(Function):
         return Broadcast.apply(ctx.target_gpus, gradOutput)
 
 
-class DataParallelModel(DataParallel):
-    """Implements data parallelism at the module level.
+class DataParallelModel(DataParallel):   
+    """Implements data parallelism at the module level.     单机多卡使用
 
     This container parallelizes the application of the given module by
     splitting the input across the specified devices by chunking in the

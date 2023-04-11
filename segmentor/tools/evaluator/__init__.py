@@ -13,7 +13,8 @@ def get_evaluator(configer, trainer, name=None):
 
     if not name in evaluators:
         raise RuntimeError('Unknown evaluator name: {}'.format(name))
-    klass = evaluators[name]   # 直接运行此步骤
-    Log.info('Using evaluator: {}'.format(klass.__name__))
+    
+    klass = evaluators[name]   # evaluators[standard]
+    Log.info('Using evaluator: {}'.format(klass.__name__))   # Using evaluator: StandardEvaluator
 
     return klass(configer, trainer)

@@ -171,7 +171,7 @@ class DataLoader(object):
             load the ground-truth label.
             """
             Log.info('use DefaultLoader for val ...')
-            klass = DefaultLoader
+            klass = DefaultLoader     # 使用默认loder
         else:
             Log.error('Method: {} loader is invalid.'.format(self.configer.get('method')))
             return None

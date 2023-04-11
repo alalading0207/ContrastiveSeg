@@ -164,7 +164,7 @@ class RunningScore(object):
         if dist.is_distributed():
             hist = dist.all_reduce_numpy(self.confusion_matrix)
         else:
-            hist = self.confusion_matrix
+            hist = self.confusion_matrix   # 获取confusion_matrix
         self.reduced_confusion_matrix = hist
 
     def _get_scores(self):
@@ -174,17 +174,17 @@ class RunningScore(object):
             - mean IU
             - fwavacc
         """
-        if self.reduced_confusion_matrix is None:
+        if self.reduced_confusion_matrix is None:    # 先获取confusion_matrix
             self.reduce_scores()
-        hist = self.reduced_confusion_matrix
+        hist = self.reduced_confusion_matrix          # 获取confusion_matrix
 
         acc = np.diag(hist).sum() / hist.sum()
-        acc_cls_list = acc_cls = np.diag(hist) / hist.sum(axis=1)
+        acc_cls_list = acc_cls = np.diag(hist) / hist.sum(axis=1) + 1e-8
         # print(acc_cls)
         # print('category-wise mean accuracy: ', acc_cls)
 
         acc_cls = np.nanmean(acc_cls)
-        iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
+        iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist)) + 1e-8
         # print(iu)
         # print(np.nanmean(iu[iu > 0]))
         # print('category-wise mean iou: ', iu)

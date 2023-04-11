@@ -72,9 +72,9 @@ class _BaseEvaluator:
     def update_performance(self):
 
         try:
-            rs = self.running_scores[self.save_net_main_key]
-            if self.save_net_metric == 'miou':
-                perf = rs.get_mean_iou()
+            rs = self.running_scores[self.save_net_main_key]   # save_net_main_key 为 'seg'
+            if self.save_net_metric == 'miou':   # 获取miou   进running_score
+                perf = rs.get_mean_iou() 
             elif self.save_net_metric == 'acc':
                 perf = rs.get_pixel_acc()
 

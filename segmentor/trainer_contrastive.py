@@ -51,38 +51,40 @@ class Trainer(object):
         self._init_model()
 
     def _init_model(self):
-        self.seg_net = self.model_manager.semantic_segmentor()
-        self.seg_net = self.module_runner.load_net(self.seg_net)
+        self.seg_net = self.model_manager.semantic_segmentor()    # 初始化网络
+        self.seg_net = self.module_runner.load_net(self.seg_net)  # module_runner  上传网络到gpu上
 
         Log.info('Params Group Method: {}'.format(self.configer.get('optim', 'group_method')))
         if self.configer.get('optim', 'group_method') == 'decay':
             params_group = self.group_weight(self.seg_net)
         else:
             assert self.configer.get('optim', 'group_method') is None
-            params_group = self._get_parameters()
+            params_group = self._get_parameters()     # 设置学习率参数
 
+        # 初始化  优化器  学习率调整策略
         self.optimizer, self.scheduler = self.optim_scheduler.init_optimizer(params_group)
-
+        # 数据集导入
         self.train_loader = self.data_loader.get_trainloader()
         self.val_loader = self.data_loader.get_valloader()
-        self.pixel_loss = self.loss_manager.get_seg_loss()
-        if is_distributed():
-            self.pixel_loss = self.module_runner.to_device(self.pixel_loss)
+        # loss声明
+        self.pixel_loss = self.loss_manager.get_seg_loss()    # contrast_auxce_loss.
+        # if is_distributed():
+        #     self.pixel_loss = self.module_runner.to_device(self.pixel_loss)
 
         self.with_contrast = True if self.configer.exists("contrast") else False
         if self.configer.exists("contrast", "warmup_iters"):
-            self.contrast_warmup_iters = self.configer.get("contrast", "warmup_iters")
+            self.contrast_warmup_iters = self.configer.get("contrast", "warmup_iters")   # 5000
         else:
             self.contrast_warmup_iters = 0
 
-        self.with_memory = self.configer.exists('contrast', 'with_memory')
+        self.with_memory = self.configer.exists('contrast', 'with_memory')   # 还没用memory
         if self.with_memory:
             self.memory_size = self.configer.get('contrast', 'memory_size')
             self.pixel_update_freq = self.configer.get('contrast', 'pixel_update_freq')
 
-        self.network_stride = self.configer.get('network', 'stride')
-
-        Log.info("with_contrast: {}, warmup_iters: {}, with_memory: {}".format(
+        self.network_stride = self.configer.get('network', 'stride')   # network_stride = 8
+        # with_contrast: True, warmup_iters: 5000, with_memory: False
+        Log.info("with_contrast: {}, warmup_iters: {}, with_memory: {}".format( 
             self.with_contrast, self.contrast_warmup_iters, self.with_memory))
 
         # self.experiment = keepsake.init(
@@ -182,20 +184,20 @@ class Trainer(object):
         self.pixel_loss.train()
         start_time = time.time()
 
-        if "swa" in self.configer.get('lr', 'lr_policy'):
-            normal_max_iters = int(self.configer.get('solver', 'max_iters') * 0.75)
-            swa_step_max_iters = (self.configer.get('solver', 'max_iters') - normal_max_iters) // 5 + 1
+        # if "swa" in self.configer.get('lr', 'lr_policy'):
+        #     normal_max_iters = int(self.configer.get('solver', 'max_iters') * 0.75)
+        #     swa_step_max_iters = (self.configer.get('solver', 'max_iters') - normal_max_iters) // 5 + 1
 
-        if hasattr(self.train_loader.sampler, 'set_epoch'):
-            self.train_loader.sampler.set_epoch(self.configer.get('epoch'))
+        # if hasattr(self.train_loader.sampler, 'set_epoch'):
+        #     self.train_loader.sampler.set_epoch(self.configer.get('epoch'))
 
         for i, data_dict in enumerate(self.train_loader):
             if self.configer.get('lr', 'metric') == 'iters':
-                self.scheduler.step(self.configer.get('iters'))
+                self.scheduler.step(self.configer.get('iters'))   # iters方式
             else:
                 self.scheduler.step(self.configer.get('epoch'))
 
-            if self.configer.get('lr', 'is_warm'):
+            if self.configer.get('lr', 'is_warm'):    # ?
                 self.module_runner.warm_lr(
                     self.configer.get('iters'),
                     self.scheduler, self.optimizer, backbone_list=[0, ]
@@ -206,7 +208,7 @@ class Trainer(object):
 
             foward_start_time = time.time()
 
-            with_embed = True if self.configer.get('iters') >= self.contrast_warmup_iters else False
+            with_embed = True if self.configer.get('iters') >= self.contrast_warmup_iters else False   # false
             if self.with_contrast is True:
                 if self.with_memory is True:
                     outputs = self.seg_net(*inputs, targets, with_embed=with_embed)
@@ -215,8 +217,8 @@ class Trainer(object):
                     outputs['pixel_queue_ptr'] = self.seg_net.module.pixel_queue_ptr
                     outputs['segment_queue'] = self.seg_net.module.segment_queue
                     outputs['segment_queue_ptr'] = self.seg_net.module.segment_queue_ptr
-                else:
-                    outputs = self.seg_net(*inputs, with_embed=with_embed)
+                else:    # with_contrast 但不用 with_memory
+                    outputs = self.seg_net(*inputs, with_embed=with_embed)   # output是字典：{'seg': out, 'seg_aux': out_aux, 'embed': emb}
             else:
                 outputs = self.seg_net(*inputs)
 
@@ -241,8 +243,8 @@ class Trainer(object):
                 loss = self.pixel_loss(outputs, targets, with_embed=with_embed)
                 backward_loss = loss
                 display_loss = reduce_tensor(backward_loss) / get_world_size()
-            else:
-                backward_loss = display_loss = self.pixel_loss(outputs, targets)
+            else:    # 计算loss: contrast_auxce_loss
+                backward_loss = display_loss = self.pixel_loss(outputs, targets)  
 
             if self.with_memory and 'key' in outputs and 'lb_key' in outputs:
                 self._dequeue_and_enqueue(outputs['key'], outputs['lb_key'],
@@ -302,6 +304,7 @@ class Trainer(object):
                 self.__val()
 
         self.configer.plus_one('epoch')
+
 
     def __val(self, data_loader=None):
         """

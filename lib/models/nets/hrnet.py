@@ -101,7 +101,7 @@ class HRNet_W48_OCR_CONTRAST(nn.Module):
         self.configer = configer
         self.num_classes = self.configer.get('data', 'num_classes')
         self.backbone = BackboneSelector(configer).get_backbone()
-        self.proj_dim = self.configer.get('contrast', 'proj_dim')
+        self.proj_dim = self.configer.get('contrast', 'proj_dim')    # proj_dim = 256
 
         in_channels = 720
         self.conv3x3 = nn.Sequential(
@@ -124,30 +124,30 @@ class HRNet_W48_OCR_CONTRAST(nn.Module):
             nn.Conv2d(in_channels, self.num_classes, kernel_size=1, stride=1, padding=0, bias=True)
         )
 
-        self.proj_head = ProjectionHead(dim_in=in_channels, proj_dim=self.proj_dim)
+        self.proj_head = ProjectionHead(dim_in=in_channels, proj_dim=self.proj_dim)   # 多了这一步
 
-    def forward(self, x_, with_embed=False, is_eval=False):
-        x = self.backbone(x_)
+    def forward(self, x_, with_embed=False, is_eval=False):   # x_ [1,3,512,1024]
+        x = self.backbone(x_)      # x [1,48,128,256]   [1,96,64,128]   [1,192,32,64]   [1,384,16,32] 
         _, _, h, w = x[0].size()
 
         feat1 = x[0]
-        feat2 = F.interpolate(x[1], size=(h, w), mode="bilinear", align_corners=True)
-        feat3 = F.interpolate(x[2], size=(h, w), mode="bilinear", align_corners=True)
-        feat4 = F.interpolate(x[3], size=(h, w), mode="bilinear", align_corners=True)
+        feat2 = F.interpolate(x[1], size=(h, w), mode="bilinear", align_corners=True)   # [1,96,128,256] 
+        feat3 = F.interpolate(x[2], size=(h, w), mode="bilinear", align_corners=True)   # [1,192,128,256]
+        feat4 = F.interpolate(x[3], size=(h, w), mode="bilinear", align_corners=True)   # [1,384,128,256]
 
-        feats = torch.cat([feat1, feat2, feat3, feat4], 1)
-        out_aux = self.aux_head(feats)
+        feats = torch.cat([feat1, feat2, feat3, feat4], 1)   # [1,720,128,256]
+        out_aux = self.aux_head(feats)    # [1, 19, 128, 256]
 
-        emb = self.proj_head(feats)
+        emb = self.proj_head(feats)       # [1,256,128,256]
 
         feats = self.conv3x3(feats)
 
         context = self.ocr_gather_head(feats, out_aux)
         feats = self.ocr_distri_head(feats, context)
 
-        out = self.cls_head(feats)
+        out = self.cls_head(feats)    # [1, 19, 128, 256]
 
-        return {'seg': out, 'seg_aux': out_aux, 'embed': emb}
+        return {'seg': out, 'seg_aux': out_aux, 'embed': emb}   # 少了重采样到1的步骤   在loss里发生
 
 
 class HRNet_W48_MEM(nn.Module):
